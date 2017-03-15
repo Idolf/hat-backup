@@ -55,12 +55,13 @@ pub mod sealed {
         }
 
         pub fn footer_cipher_bytes() -> usize {
-            footer_plain_bytes() + SEALBYTES
+            footer_plain_bytes()
         }
 
         pub fn overhead() -> usize {
             // MAC for the plaintext being sealed + the footer.
-            SEALBYTES + footer_cipher_bytes()
+            // SEALBYTES + footer_cipher_bytes()
+            footer_cipher_bytes()
         }
     }
 
@@ -90,10 +91,10 @@ impl<'a> PlainTextRef<'a> {
                          nonce: &authed::desc::Nonce,
                          key: &authed::desc::Key)
                          -> CipherText {
-        CipherText::new(authed::imp::seal(self.0, nonce, key))
+        CipherText::new(self.0.to_owned())
     }
     pub fn to_sealed_ciphertext(&self, pubkey: &sealed::desc::PublicKey) -> CipherText {
-        CipherText::new(sealed::imp::seal(self.0, pubkey))
+        CipherText::new(self.0.to_owned())
     }
     pub fn as_ref(&'a self) -> PlainTextRef<'a> {
         PlainTextRef(self.0)
@@ -151,9 +152,10 @@ impl CipherText {
         }
     }
     pub fn random_pad(size: usize) -> CipherText {
-        let key = stream::salsa20::gen_key();
-        let nonce = stream::salsa20::gen_nonce();
-        CipherText::new(stream::salsa20::stream(size, &nonce, &key))
+        CipherText::new(vec![0; size])
+        // let key = stream::salsa20::gen_key();
+        // let nonce = stream::salsa20::gen_nonce();
+        // CipherText::new(stream::salsa20::stream(size, &nonce, &key))
     }
     pub fn to_vec(&self) -> Vec<u8> {
         let mut out = vec![];
@@ -191,15 +193,16 @@ impl<'a> CipherTextRef<'a> {
                         nonce: &authed::desc::Nonce,
                         key: &authed::desc::Key)
                         -> Result<PlainText, CryptoError> {
-        Ok(PlainText::new(try!(authed::imp::open(&self.0, &nonce, &key)
-           .map_err(|()| "crypto read failed: to_plaintext"))))
+        Ok(PlainText::new(self.0.to_owned()))
+        // .map_err(|()| "crypto read failed: to_plaintext"))))
     }
     pub fn to_sealed_plaintext(&self,
                                pubkey: &sealed::desc::PublicKey,
                                seckey: &sealed::desc::SecretKey)
                                -> Result<PlainText, CryptoError> {
-        Ok(PlainText::new(try!(sealed::imp::open(&self.0, &pubkey, &seckey)
-            .map_err(|()| "crypto read failed: to_sealed_plaintext"))))
+        Ok(PlainText::new(self.0.to_owned()))
+        // Ok(PlainText::new(try!(sealed::imp::open(&self.0, &pubkey, &seckey)
+        // .map_err(|()| "crypto read failed: to_sealed_plaintext"))))
     }
 }
 
